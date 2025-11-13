@@ -23,6 +23,7 @@ if (!isset($_SESSION['student_number']) || $_SESSION['is_admin'] != 1) {
     <!-- Bootstrap Icons (for a cleaner look) -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="styles.css">
+        <link href="https://cdn.jsdelivr.net/npm/remixicon@4.5.0/fonts/remixicon.css" rel="stylesheet">
     <style>
         /* 1. Remove unnecessary top padding and set background */
         body {
@@ -82,7 +83,6 @@ if (!isset($_SESSION['student_number']) || $_SESSION['is_admin'] != 1) {
             flex-grow: 1;
             width: 100%;
             /* Offset content to make space for the desktop sidebar */
-            padding-left: 250px; 
             padding-top: 70px; /* Padding for the fixed top header */
         }
 
@@ -123,22 +123,67 @@ if (!isset($_SESSION['student_number']) || $_SESSION['is_admin'] != 1) {
     
     <!-- Overall Layout Wrapper -->
     <div id="wrapper">
-        
-        <!-- 🌟 SIDEBAR/NAVIGATION 🌟 -->
+        <!-- Navbar -->
+<nav class="navbar navbar-light bg-white shadow-sm fixed-top">
+  <div class="container-xxl d-flex align-items-center justify-content-between">
+
+    <!-- Left: Logo -->
+    <a class="navbar-brand fs-2 fw-bold d-flex align-items-center gap-2" href="#">
+      <img src="img/logo.png" alt="" class="img-fluid" style="height:60px;">
+      <span class="d-lg-inline">COMSA-TRACKER</span>
+    </a>
+
+
+
+      <!-- Right: Icon buttons -->
+    <div class="d-flex align-items-center gap-3 d-none d-lg-flex">
+
+      <a href="admin_dashboard.php" class="btn btn-light rounded-3 d-flex align-items-center justify-content-center"
+         style="width:50px; height:50px;">
+        <i class="ri-dashboard-line fs-4"></i>
+      </a>
+
+      <a href="events.php"
+         class="btn btn-active rounded-3 d-flex align-items-center justify-content-center"
+         style="width:50px; height:50px;">
+        <i class="ri-calendar-schedule-line fs-4"></i>
+      </a>
+
+       <a href="tasks.php"
+         class="btn btn-light rounded-3 d-flex align-items-center justify-content-center"
+         style="width:50px; height:50px;">
+        <i class="ri-list-check-2 fs-4"></i>
+      </a>
+
+       <a href="users.php"
+         class="btn btn-light rounded-3 d-flex align-items-center justify-content-center"
+         style="width:50px; height:50px;">
+        <i class="ri-user-3-line fs-4"></i>
+      </a>
+
+      <a href="settings.php"
+         class="btn btn-light rounded-3 d-flex align-items-center justify-content-center"
+         style="width:50px; height:50px;">
+        <i class="ri-settings-line fs-4"></i>
+      </a>
+
+  </div>
+</nav>
+
+<!-- /Navbar -->
+        <!-- 🌟 SIDEBAR/NAVIGATION 🌟 
         <div id="sidebar-wrapper" class="shadow-lg border-right">
-            <!-- Sidebar Heading now includes the close button for mobile -->
+            <!-- Sidebar Heading now includes the close button for mobile 
             <div class="sidebar-heading d-flex justify-content-between align-items-center">
-                <div class="text-center">
-                <img src="img/secondary_logo.png" alt="COMSA Logo" style="width: 200px;">
-             </div>
-                <!-- Close button (visible only on mobile) -->
+                
+                <!-- Close button (visible only on mobile) 
                 <button class="btn text-black d-lg-none p-0" id="sidebarClose" aria-label="Close menu">
                     <i class="bi bi-x-lg fs-4"></i>
                 </button>
             </div>
             
             <div class="list-group list-group-flush sidebar-links">
-                <!-- Navigation Items -->
+                <!-- Navigation Items 
                 <a href="admin_dashboard.php" class="list-group-item list-group-item-action">
                     <i class="bi bi-speedometer2 me-2"></i> Dashboard
                 </a>
@@ -156,7 +201,7 @@ if (!isset($_SESSION['student_number']) || $_SESSION['is_admin'] != 1) {
                 </a>
             </div>
         </div>
-        <!-- 🌟 END SIDEBAR 🌟 -->
+         🌟 END SIDEBAR 🌟  -->
 
         <!-- Page Content Wrapper -->
         <div id="page-content-wrapper">
@@ -171,89 +216,189 @@ if (!isset($_SESSION['student_number']) || $_SESSION['is_admin'] != 1) {
                 </div>
             </nav>
 
-            <!-- Main Content Area -->
-            <div class="container-fluid">
-                <h2 class="">Events</h2>
-                <p class="lead text-muted"></p>
-                <hr class="mb-4">
+          <!-- Main Content Area -->
+<main class="container-fluid py-5">
+ <div class="row g-4 justify-content-center">
+  <div class="card shadow-sm border-0">
+    <div class="card-body">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="fw-bold mb-0">Events</h2>
+        <!-- Trigger Modal -->
+        <button class="add-btn" data-bs-toggle="modal" data-bs-target="#addEventModal">
+  <i class="ri-add-line"></i> Add Activity
+</button>
+      </div>
+      <hr>
 
-                <form action="/submit" method="post">
-                    <div class="table-responsive">
-                        <!-- Table remains the same, but centered in the main content area -->
-                        <table class="table table-striped table-hover table-bordered align-middle rounded-3 overflow-hidden">
-                            <thead class="table-dark">
-                                <tr>
-                                    <th scope="col" class="text-center">TYPE</th>
-                                    <th scope="col" class="text-center">TITLE</th>
-                                    <th scope="col" class="text-center">SAS F6</th>
-                                    <th scope="col" class="text-center">TRANSMITTAL</th>
-                                    <th scope="col" class="text-center">INVITATION</th>
-                                    <th scope="col" class="text-center">ENDORSEMENT</th>
-                                    <th scope="col" class="text-center">DUE DATE</th>
-                                    <th scope="col" class="text-center">STATUS</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td>Task A</td>
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r1c2" id="r1c2"></div></td>
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r1c3" id="r1c3"></div></td>
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r1c4" id="r1c4"></div></td>
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r1c5" id="r1c5"></div></td>
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r1c6" id="r1c6"></div></td>
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r1c7" id="r1c7"></div></td>
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r1c8" id="r1c8"></div></td>
-                                </tr>
-                                <tr>
-                                    <td>Task B</td>
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r2c2" id="r2c2"></div></td>
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r2c3" id="r2c3"></div></td>
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r2c4" id="r2c4"></div></td>
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r2c5" id="r2c5"></div></td>
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r2c6" id="r2c6"></div></td>
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r2c7" id="r2c7"></div></td>
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r2c8" id="r2c8"></div></td>
-                                </tr>
-                                <tr>
-                                    <td>Task C</td>
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r3c2" id="r3c2"></div></td>
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r3c3" id="r3c3"></div></td>
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r3c4" id="r3c4"></div></td>
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r3c5" id="r3c5"></div></td>
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r3c6" id="r3c6"></div></td>
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r3c7" id="r3c7"></div></td>
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r3c8" id="r3c8"></div></td>
-                                </tr>
-                                <tr>
-                                    <td>Task D</td>
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r4c2" id="r4c2"></div></td>
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r4c3" id="r4c3"></div></td>
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r4c4" id="r4c4"></div></td>
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r4c5" id="r4c5"></div></td>
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r4c6" id="r4c6"></div></td>
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r4c7" id="r4c7"></div></td>
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r4c8" id="r4c8"></div></td>
-                                </tr>
-                                <tr>
-                                    <td>Task E</td>
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r5c2" id="r5c2"></div></td>
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r5c3" id="r5c3"></div></td>
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r5c4" id="r5c4"></div></td>
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r5c5" id="r5c5"></div></td>
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r5c6" id="r5c6"></div></td> 
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r5c7" id="r5c7"></div></td>
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r5c8" id="r5c8"></div></td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
+      <div class="table-responsive">
+        <table class="modern-table">
+          <thead>
+            <tr>
+              <th>TYPE</th>
+              <th>TITLE</th>
+              <th>SAS F6</th>
+              <th>TRANSMITTAL</th>
+              <th>INVITATION</th>
+              <th>ENDORSEMENT</th>
+              <th>DUE DATE</th>
+              <th>STATUS</th>
+              <th>PRINTED</th>
+              <th>SIGNED</th>
+              <th>ACTION</th>
+            </tr>
+          </thead>
+          <tbody>
+          <?php
+          require_once "config.php";
+          $result = $conn->query("SELECT * FROM events ORDER BY id DESC");
+          while ($row = $result->fetch_assoc()) {
+              echo "<tr>";
+              echo "<td>{$row['type']}</td>";
+              echo "<td>{$row['title']}</td>";
+              echo "<td><input type='checkbox' class='update-checkbox' data-id='{$row['id']}' data-column='sas_f6' " . ($row['sas_f6'] ? "checked" : "") . "></td>";
+              echo "<td><input type='checkbox' class='update-checkbox' data-id='{$row['id']}' data-column='transmittal' " . ($row['transmittal'] ? "checked" : "") . "></td>";
+              echo "<td><input type='checkbox' class='update-checkbox' data-id='{$row['id']}' data-column='invitation' " . ($row['invitation'] ? "checked" : "") . "></td>";
+              echo "<td><input type='checkbox' class='update-checkbox' data-id='{$row['id']}' data-column='endorsement' " . ($row['endorsement'] ? "checked" : "") . "></td>";
+              echo "<td>{$row['due_date']}</td>";
+              echo "<td>{$row['status']}</td>";
+              echo "<td><input type='checkbox' class='update-checkbox' data-id='{$row['id']}' data-column='printed' " . ($row['printed'] ? "checked" : "") . "></td>";
+              echo "<td><input type='checkbox' class='update-checkbox' data-id='{$row['id']}' data-column='signed' " . ($row['signed'] ? "checked" : "") . "></td>";
+              echo "<td>";
+                echo "<button class='btn btn-sm btn-primary edit-btn' 
+                        data-id='{$row['id']}' 
+                        data-type='{$row['type']}' 
+                        data-title='{$row['title']}' 
+                        data-due_date='{$row['due_date']}' 
+                        data-status='{$row['status']}'
+                        data-sas_f6='{$row['sas_f6']}'
+                        data-transmittal='{$row['transmittal']}'
+                        data-invitation='{$row['invitation']}'
+                        data-endorsement='{$row['endorsement']}'
+                        data-printed='{$row['printed']}'
+                        data-signed='{$row['signed']}'
+                        >
+                        <i class='ri-edit-line'></i>
+                    </button> ";
+                echo "<a href='delete_events.php?id={$row['id']}' class='btn btn-sm btn-danger' onclick='return confirm(\"Are you sure you want to delete this event?\")'>
+                        <i class='ri-delete-bin-line'></i>
+                    </a>";
+              echo "</td>";
+              echo "</tr>";
+          }
+          ?>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
 
-                    <div class="d-flex justify-content-end my-4">
-                        <button type="submit" class="btn btn-comsa btn-lg">Save Changes</button>
-                    </div>
-                </form>
+<!-- Modal -->
+<div class="modal fade" id="addEventModal" tabindex="-1" aria-labelledby="addEventModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <form method="POST" action="save_events.php">
+        <div class="modal-header">
+          <h5 class="modal-title" id="addEventModalLabel">Add New Event</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label class="form-label">Type</label>
+              <input type="text" name="type" class="form-control" placeholder="e.g. Task A" required>
             </div>
-            <!-- End Main Content Area -->
+            <div class="col-md-6">
+              <label class="form-label">Title</label>
+              <input type="text" name="title" class="form-control" placeholder="Event title">
+            </div>
+          </div>
+          <div class="row mb-3 text-center">
+            <div class="col"><label>SAS F6</label><input type="checkbox" name="sas_f6" class="form-check-input ms-2"></div>
+            <div class="col"><label>Transmittal</label><input type="checkbox" name="transmittal" class="form-check-input ms-2"></div>
+            <div class="col"><label>Invitation</label><input type="checkbox" name="invitation" class="form-check-input ms-2"></div>
+            <div class="col"><label>Endorsement</label><input type="checkbox" name="endorsement" class="form-check-input ms-2"></div>
+            <div class="col"><label>Printed</label><input type="checkbox" name="printed" class="form-check-input ms-2"></div>
+            <div class="col"><label>Signed</label><input type="checkbox" name="signed" class="form-check-input ms-2"></div>
+          </div>
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label class="form-label">Due Date</label>
+              <input type="date" name="due_date" class="form-control">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Status</label>
+              <select name="status" class="form-select">
+                <option value="Pending">Pending</option>
+                <option value="Ongoing">Ongoing</option>
+                <option value="Completed">Completed</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-success">Add Event</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal fade" id="editEventModal" tabindex="-1" aria-labelledby="editEventModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <form method="POST" action="update_events.php">
+        <div class="modal-header">
+          <h5 class="modal-title" id="editEventModalLabel">Edit Event</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" name="id" id="edit-id">
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label class="form-label">Type</label>
+              <input type="text" name="type" id="edit-type" class="form-control" required>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Title</label>
+              <input type="text" name="title" id="edit-title" class="form-control">
+            </div>
+          </div>
+          <div class="row mb-3 text-center">
+            <div class="col"><label>SAS F6</label><input type="checkbox" id="edit-sas_f6" name="sas_f6" class="form-check-input ms-2"></div>
+            <div class="col"><label>Transmittal</label><input type="checkbox" id="edit-transmittal" name="transmittal" class="form-check-input ms-2"></div>
+            <div class="col"><label>Invitation</label><input type="checkbox" id="edit-invitation" name="invitation" class="form-check-input ms-2"></div>
+            <div class="col"><label>Endorsement</label><input type="checkbox" id="edit-endorsement" name="endorsement" class="form-check-input ms-2"></div>
+            <div class="col"><label>Printed</label><input type="checkbox" id="edit-printed" name="printed" class="form-check-input ms-2"></div>
+            <div class="col"><label>Signed</label><input type="checkbox" id="edit-signed" name="signed" class="form-check-input ms-2"></div>
+          </div>
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label class="form-label">Due Date</label>
+              <input type="date" name="due_date" id="edit-due_date" class="form-control">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Status</label>
+              <select name="status" id="edit-status" class="form-select">
+                <option value="Pending">Pending</option>
+                <option value="Ongoing">Ongoing</option>
+                <option value="Completed">Completed</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-success">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+</main>
+
         </div>
         <!-- End Page Content Wrapper -->
 
@@ -287,5 +432,90 @@ if (!isset($_SESSION['student_number']) || $_SESSION['is_admin'] != 1) {
             }
         });
     </script>
+
+    <script>
+  document.getElementById('addRow').addEventListener('click', function() {
+    const tableBody = document.querySelector('#eventTable tbody');
+    const newRow = document.createElement('tr');
+    newRow.innerHTML = `
+      <td><input type="text" name="type[]" class="form-control" placeholder="e.g. Task"></td>
+      <td><input type="text" name="title[]" class="form-control" placeholder="Enter title"></td>
+      <td class="text-center"><input type="checkbox" name="sas_f6[]"></td>
+      <td class="text-center"><input type="checkbox" name="transmittal[]"></td>
+      <td class="text-center"><input type="checkbox" name="invitation[]"></td>
+      <td class="text-center"><input type="checkbox" name="endorsement[]"></td>
+      <td><input type="date" name="due_date[]" class="form-control"></td>
+      <td>
+        <select name="status[]" class="form-select">
+          <option value="Pending">Pending</option>
+          <option value="Ongoing">Ongoing</option>
+          <option value="Completed">Completed</option>
+        </select>
+      </td>
+    `;
+    tableBody.appendChild(newRow);
+  });
+</script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const checkboxes = document.querySelectorAll('.update-checkbox');
+
+  checkboxes.forEach(checkbox => {
+    checkbox.addEventListener('change', function() {
+      const id = this.dataset.id;
+      const column = this.dataset.column;
+      const value = this.checked;
+
+      fetch('update_events_status.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: `id=${id}&column=${column}&value=${value}`
+      })
+      .then(response => response.text())
+      .then(data => {
+        if (data.trim() === 'success') {
+          console.log(`Updated ${column} for ID ${id} → ${value}`);
+        } else {
+          alert('Error updating: ' + data);
+          this.checked = !value; // revert if failed
+        }
+      })
+      .catch(err => {
+        alert('Request failed');
+        this.checked = !value; // revert if network failed
+      });
+    });
+  });
+});
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const editButtons = document.querySelectorAll('.edit-btn');
+
+  editButtons.forEach(btn => {
+    btn.addEventListener('click', function() {
+      document.getElementById('edit-id').value = this.dataset.id;
+      document.getElementById('edit-type').value = this.dataset.type;
+      document.getElementById('edit-title').value = this.dataset.title;
+      document.getElementById('edit-due_date').value = this.dataset.due_date;
+      document.getElementById('edit-status').value = this.dataset.status;
+
+      // Checkboxes
+      document.getElementById('edit-sas_f6').checked = this.dataset.sas_f6 == 1;
+      document.getElementById('edit-transmittal').checked = this.dataset.transmittal == 1;
+      document.getElementById('edit-invitation').checked = this.dataset.invitation == 1;
+      document.getElementById('edit-endorsement').checked = this.dataset.endorsement == 1;
+      document.getElementById('edit-printed').checked = this.dataset.printed == 1;
+      document.getElementById('edit-signed').checked = this.dataset.signed == 1;
+
+      const modal = new bootstrap.Modal(document.getElementById('editEventModal'));
+      modal.show();
+    });
+  });
+});
+</script>
+
+
 </body>
 </html>
