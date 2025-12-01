@@ -44,6 +44,13 @@
     --bs-btn-hover-border-color: var(--comsa-green);
 }
 
+.btn-outline-success:hover,
+.btn-outline-success:focus {
+    background-color: var(--comsa-green) !important;
+    border-color: var(--comsa-green) !important;
+    color: #fff !important;
+}
+
 /* --- Success Text (.text-success) --- */
 .text-success {
     /* Used for text links, table text, and any success-related label */

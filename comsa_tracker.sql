@@ -93,3 +93,26 @@ CREATE TABLE events (
 -- Add enum type to the 'type' column in 'events' table
 ALTER TABLE `events`
   MODIFY `type` enum('Off-Campus', 'On-Campus') NOT NULL;
+
+-- Create Participants Table
+
+CREATE TABLE participants (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    event_id INT NOT NULL,
+    name VARCHAR(150) NOT NULL,
+    student_number VARCHAR(20) UNIQUE, -- If participants are students with unique IDs
+    section VARCHAR(50) NOT NULL,
+    FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_participant_event (event_id, student_number) -- Prevents duplicate entries for the same event
+);
+
+CREATE TABLE `participant_checklist` (
+    `id` INT AUTO_INCREMENT PRIMARY KEY,
+    `participant_id` INT UNIQUE NOT NULL, 
+    
+    `p_studid` TINYINT(1) DEFAULT 0, 
+    `p_parentid` TINYINT(1) DEFAULT 0, 
+    `p_waiver` TINYINT(1) DEFAULT 0, 
+    `p_cor` TINYINT(1) DEFAULT 0, 
+    FOREIGN KEY (`participant_id`) REFERENCES `participants`(`id`) ON DELETE CASCADE
+);
