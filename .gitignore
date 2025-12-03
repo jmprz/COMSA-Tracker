@@ -1,0 +1,5 @@
+# Ignore Composer dependencies
+/vendor/
+
+# Ignore environment/config files with secrets
+functions/email_config.php

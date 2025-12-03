@@ -1,291 +1,495 @@
 <?php
 session_start();
-// Regenerate session ID after login to prevent fixation attacks
-if (!isset($_SESSION['initiated'])) {
-    session_regenerate_id(true);
-    $_SESSION['initiated'] = true;
-}
-// Check if user is logged in and is admin
+require_once "../functions/config.php"; // DB connection
+require_once "../functions/send_task_email.php"; // Email function
+
+// Admin check
 if (!isset($_SESSION['student_number']) || $_SESSION['is_admin'] != 1) {
     header("Location: login.php");
     exit();
+}
+
+// --- FETCHING DATA ---
+
+// Define the allowed filter types
+$allowed_types = ['all', 'executives', 'csit', 'creatives', 'sbdg', 'docpub'];
+// Check GET parameter for filtering, sanitize, and default to 'all'
+$current_filter = isset($_GET['type']) && in_array(strtolower($_GET['type']), $allowed_types) ? strtolower($_GET['type']) : 'all';
+
+// 1. Fetch all users for the "Assigned To" dropdown in Add/Edit Modals
+$users_query = "SELECT id, name, email, type FROM users ORDER BY name ASC";
+$users_result = $conn->query($users_query);
+$users_list = $users_result ? $users_result->fetch_all(MYSQLI_ASSOC) : [];
+
+
+// 2. Fetch all tasks with the assigned user's name and type
+$where_clause = "";
+if ($current_filter !== 'all') {
+    // Construct WHERE clause to filter by the selected user type
+    $where_clause = "WHERE u.type = '" . $conn->real_escape_string($current_filter) . "'";
+}
+
+$sql_query = "
+    SELECT 
+        t.id, 
+        t.task_name, 
+        t.description, 
+        t.notes, 
+        t.due_date, 
+        t.status, 
+        t.link,
+        t.assigned_to_id,
+        u.name AS assigned_to_name,
+        u.email AS assigned_to_email,
+        u.type AS assigned_to_type /* Fetch the user type */
+    FROM tasks t
+    JOIN users u ON t.assigned_to_id = u.id
+    $where_clause  /* Insert the filtering clause here */
+    ORDER BY t.due_date ASC, t.status ASC
+";
+$tasks_result = $conn->query($sql_query);
+
+
+// 3. Dynamically Fetch ENUM values for the 'status' field (For Modals)
+$enum_query = "
+    SELECT COLUMN_TYPE
+    FROM INFORMATION_SCHEMA.COLUMNS
+    WHERE TABLE_SCHEMA = DATABASE()
+    AND TABLE_NAME = 'tasks'
+    AND COLUMN_NAME = 'status'
+";
+$enum_result = $conn->query($enum_query);
+$status_options = [];
+
+if ($enum_result && $enum_row = $enum_result->fetch_assoc()) {
+    $enum_list = $enum_row['COLUMN_TYPE'];
+    preg_match("/^enum\(\'(.*)\'\)$/", $enum_list, $matches);
+    if (isset($matches[1])) {
+        $status_options = explode("','", $matches[1]);
+    }
+}
+// Fallback/Default status if fetching fails
+if (empty($status_options)) {
+    $status_options = ['not_started', 'in_progress', 'completed'];
+}
+
+// --- ALERT MESSAGES ---
+$alert_type = '';
+$alert_message = '';
+if (isset($_SESSION['success_message'])) {
+    $alert_type = 'success';
+    $alert_message = $_SESSION['success_message'];
+    unset($_SESSION['success_message']);
+} elseif (isset($_SESSION['error_message'])) {
+    $alert_type = 'danger';
+    $alert_message = $_SESSION['error_message'];
+    unset($_SESSION['error_message']);
 }
 ?>
 
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard | COMSA - TRACKER</title>
-    <!-- Bootstrap CSS CDN -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" xintegrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
-    <!-- Bootstrap Icons (for a cleaner look) -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="styles.css">
+    <title>Task Management | COMSA - TRACKER</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@4.5.0/fonts/remixicon.css" rel="stylesheet">
+    <link rel="stylesheet" href="../styles.css">
     <style>
-        /* 1. Remove unnecessary top padding and set background */
-        body {
-            padding-top: 0;
-            padding-bottom: 20px;
-            background-color: #f8f9fa;
+        /* Add your custom styles or use the ones from user.php as a base */
+        .badge-pending {
+            background-color: #ffc107;
+            color: #000;
         }
 
-        /* 2. Main wrapper uses Flexbox for side-by-side layout */
-        #wrapper {
-            display: flex;
-            width: 100%;
+        .badge-in_progress {
+            background-color: #0d6efd;
+            color: #fff;
         }
 
-        /* 3. Sidebar Styles: fixed, full height, dark background */
-        #sidebar-wrapper {
-            min-height: 100vh;
-            width: 250px;
-            position: fixed;
-            top: 0;
-            left: 0;
-            z-index: 1030;
-            background-color: white; /* Darker than the top nav */
-            transition: all 0.3s;
-        }
-        
-        /* Style for the logo/brand area within the sidebar */
-        .sidebar-heading {
-            padding: 1.5rem 1rem;
-            font-size: 1.2rem;
-            color: #f8f9fa;
-            font-weight: bold;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        .badge-completed {
+            background-color: #198754;
+            color: #fff;
         }
 
-        /* Style for the navigation links in the sidebar */
-        .sidebar-links .list-group-item {
-            border: none;
-            padding: 0.8rem 1.5rem;
-            background-color: transparent;
-            color: #000000ff; /* Light grey text */
-            transition: background-color 0.2s;
-        }
-
-        .sidebar-links .list-group-item:hover,
-        .sidebar-links .list-group-item.active {
-            color: #ffffff;
-            background-color: #09b003; /* Slightly lighter dark on hover/active */
-        }
-        
-        .sidebar-links .list-group-item.active {
-            border-left: 20px solid #007a00; /* Highlight active link */
-        }
-
-        /* 4. Content Area Styles */
-        #page-content-wrapper {
-            flex-grow: 1;
-            width: 100%;
-            /* Offset content to make space for the desktop sidebar */
-            padding-left: 250px; 
-            padding-top: 70px; /* Padding for the fixed top header */
-        }
-
-        .top-header {
-            width: 100%;
-            padding-left: 250px;
-            z-index: 1000;
-        }
-        
-        /* 5. Responsive / Mobile Toggling */
-        @media (max-width: 991.98px) { /* Adjusting for lg breakpoint */
-            /* Hide the sidebar completely on smaller screens by default */
-            #sidebar-wrapper {
-                margin-left: -250px;
-            }
-            /* Content takes full width on mobile */
-            #page-content-wrapper,
-            .top-header {
-                padding-left: 0;
-            }
-            /* When the toggled class is present, slide the sidebar in */
-            #wrapper.toggled #sidebar-wrapper {
-                margin-left: 0;
-            }
-            /* Push the content over when the sidebar is open */
-            #wrapper.toggled #page-content-wrapper {
-                margin-left: 250px;
-            }
-        }
-        
-        /* Adjust for overall responsiveness */
-        .container-fluid {
-            max-width: 100%; /* Use full width in the dashboard layout */
+        .material-table th,
+        .material-table td {
+            font-size: 0.9rem;
         }
     </style>
 </head>
+
 <body>
-    
-    <!-- Overall Layout Wrapper -->
+    <nav class="navbar navbar-light bg-white shadow-sm fixed-top">
+        <div class="container-xxl d-flex align-items-center justify-content-between">
+            <a class="navbar-brand fs-2 fw-bold d-flex align-items-center gap-2" href="#">
+                <img src="../img/tracker-logo.png" alt="" class="img-fluid" style="height:60px;">
+                <span class="d-lg-inline">COMSA-TRACKER</span>
+            </a>
+            <div class="d-flex align-items-center gap-3 d-none d-lg-flex">
+                <a href="admin_dashboard.php"
+                    class="btn btn-light rounded-3 d-flex align-items-center justify-content-center"
+                    style="width:50px; height:50px;">
+                    <i class="ri-dashboard-line fs-4"></i>
+                </a>
+                <a href="events.php" class="btn btn-light rounded-3 d-flex align-items-center justify-content-center"
+                    style="width:50px; height:50px;">
+                    <i class="ri-calendar-schedule-line fs-4"></i>
+                </a>
+                <a href="tasks.php" class="btn btn-active rounded-3 d-flex align-items-center justify-content-center"
+                    style="width:50px; height:50px;">
+                    <i class="ri-list-check-2 fs-4"></i>
+                </a>
+                <a href="users.php" class="btn btn-light rounded-3 d-flex align-items-center justify-content-center"
+                    style="width:50px; height:50px;"> <i class="ri-user-3-line fs-4"></i>
+                </a>
+                <a href="../logout.php" class="btn btn-light rounded-3 d-flex align-items-center justify-content-center"
+                    style="width:50px; height:50px;">
+                    <i class="ri-logout-box-r-line fs-4"></i>
+                </a>
+            </div>
+        </div>
+    </nav>
+
     <div id="wrapper">
-        
-        <!-- 🌟 SIDEBAR/NAVIGATION 🌟 -->
-        <div id="sidebar-wrapper" class="shadow-lg border-right">
-            <!-- Sidebar Heading now includes the close button for mobile -->
-            <div class="sidebar-heading d-flex justify-content-between align-items-center">
-                <div class="text-center">
-                <img src="../img/tracker-logo2.png" alt="COMSA Logo" style="width: 200px;">
-             </div>
-                <!-- Close button (visible only on mobile) -->
-                <button class="btn text-black d-lg-none p-0" id="sidebarClose" aria-label="Close menu">
-                    <i class="bi bi-x-lg fs-4"></i>
-                </button>
-            </div>
-            
-            <div class="list-group list-group-flush sidebar-links">
-                <!-- Navigation Items -->
-                <a href="admin/admin_dashboard.php" class="list-group-item list-group-item-action">
-                    <i class="bi bi-speedometer2 me-2"></i> Dashboard
-                </a>
-                <a href="events.php" class="list-group-item list-group-item-action">
-                    <i class="bi bi-calendar-week me-2"></i> Events
-                </a>
-                <a href="tasks.php" class="list-group-item list-group-item-action active">
-                    <i class="bi bi-table me-2"></i> Tasks
-                </a>
-                <a href="users.php" class="list-group-item list-group-item-action">
-                    <i class="bi bi-person me-2"></i> Users
-                </a>
-                <a href="logout.php" class="list-group-item list-group-item-action">
-                    <i class="bi bi-box-arrow-right"></i> Logout
-                </a>
-            </div>
-        </div>
-        <!-- 🌟 END SIDEBAR 🌟 -->
-
-        <!-- Page Content Wrapper -->
         <div id="page-content-wrapper">
-            
-            <!-- TOP HEADER (for Brand and Mobile Toggle) -->
-            <nav class="navbar navbar-expand-lg fixed-top top-header">
-                <div class="container-fluid">
-                    <!-- Hamburger Toggle Button (HIDES ON LARGE SCREENS AND UP) -->
-                    <button class="btn btn-comsa d-lg-none" id="sidebarToggle" aria-label="Open menu">
-                        <i class="bi bi-list"></i>
-                    </button>
+            <main class="container-md py-5">
+                <?php if (!empty($alert_message)): ?>
+                    <div class="alert alert-<?= $alert_type ?> alert-dismissible fade show" role="alert">
+                        <?= $alert_message ?>
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                <?php endif; ?>
+
+                <div class="row g-4 justify-content-center mt-5">
+                    <div class="card shadow-md border-0">
+                        <div class="card-body">
+                            <div
+                                class="d-flex justify-content-between align-items-center mb-4 pb-2 border-bottom material-header-top">
+                                <h2 class="fw-bold mb-0 text-dark">Task Management</h2>
+                                <button class="btn btn-comsa fw-bold" data-bs-toggle="modal"
+                                    data-bs-target="#addTaskModal">
+                                    <i class="ri-add-line me-1"></i> Add Task
+                                </button>
+                            </div>
+
+                            <div class="d-flex flex-wrap gap-2 mb-4">
+                                <?php
+                                $filter_options = [
+                                    'all' => 'All Teams',
+                                    'executives' => 'Executives',
+                                    'csit' => 'CSIT',
+                                    'creatives' => 'Creatives',
+                                    'sbdg' => 'SBDG',
+                                    'docpub' => 'DocPub'
+                                ];
+                                foreach ($filter_options as $type => $label):
+                                    // Highlight the currently selected filter
+                                    $active_class = ($current_filter == $type) ? 'btn-comsa' : 'btn-outline-secondary';
+                                    ?>
+                                    <a href="tasks.php?type=<?= $type ?>" class="btn btn-sm <?= $active_class ?> fw-medium">
+                                        <?= $label ?>
+                                    </a>
+                                <?php endforeach; ?>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table table-borderless table-hover align-middle material-table">
+                                    <thead class="material-header-bottom">
+                                        <tr>
+                                            <th scope="col" style="width: 15%;">ASSIGNED TO</th>
+                                            <th scope="col" style="width: 20%;">TASK</th>
+                                            <th scope="col" style="width: 25%;">DESCRIPTION</th>
+                                            <th scope="col" style="width: 15%;">NOTES</th>
+                                            <th scope="col" style="width: 10%;">DUE DATE</th>
+                                            <th scope="col" style="width: 10%;">STATUS</th>
+                                            <th scope="col" style="width: 15%;">LINK</th>
+                                            <th scope="col" class="text-center" style="width: 10%;">ACTION</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <?php if ($tasks_result && $tasks_result->num_rows > 0): ?>
+                                            <?php while ($row = $tasks_result->fetch_assoc()):
+                                                // Status badge logic
+                                                $status_class = match ($row['status']) {
+                                                    'not_started' => 'text-warning bg-warning-subtle',
+                                                    'in_progress' => 'text-info bg-info-subtle',
+                                                    'completed' => 'text-success bg-success-subtle',
+                                                    default => 'text-secondary bg-light-subtle',
+                                                };
+                                                ?>
+                                                <tr class="align-middle task-row"
+                                                    data-user-type="<?= htmlspecialchars($row['assigned_to_type']) ?>">
+                                                    <td class="fw-medium text-dark assigned-to-name">
+                                                        <?= htmlspecialchars($row['assigned_to_name']) ?>
+                                                        <br><small
+                                                            class="text-muted text-uppercase">(<?= htmlspecialchars($row['assigned_to_type']) ?>)</small>
+                                                    </td>
+                                                    <td class="task-name"><?= htmlspecialchars($row['task_name']) ?></td>
+                                                    <td class="task-description text-truncate" style="max-width: 200px;">
+                                                        <?= htmlspecialchars($row['description']) ?></td>
+                                                    <td class="task-notes text-truncate" style="max-width: 150px;">
+                                                        <?= htmlspecialchars($row['notes']) ?></td>
+                                                    <td class="task-due-date"><?= date('M d, Y', strtotime($row['due_date'])) ?>
+                                                    </td>
+                                                    <td>
+                                                        <span class="badge rounded-pill fw-medium <?= $status_class ?>">
+                                                            <?= ucwords(str_replace('_', ' ', $row['status'])) ?>
+                                                        </span>
+                                                    </td>
+                                                    <td class="task-link">
+                                                        <?php if (!empty($row['link'])): ?>
+                                                            <a href="<?= htmlspecialchars($row['link']) ?>" target="_blank"
+                                                                class="btn btn-sm btn-outline-info" title="View Link">
+                                                                <i class="ri-external-link-line"></i> View
+                                                            </a>
+                                                        <?php else: ?>
+                                                            N/A
+                                                        <?php endif; ?>
+                                                    </td>
+
+                                                    <td class="text-center">
+                                                        <div class="btn-group btn-group-sm" role="group">
+                                                            <button class="btn btn-icon edit-task-btn text-primary"
+                                                                data-bs-toggle="modal" data-bs-target="#editTaskModal"
+                                                                title="Edit" data-id="<?= $row['id'] ?>"
+                                                                data-assigned-id="<?= $row['assigned_to_id'] ?>"
+                                                                data-task-name="<?= htmlspecialchars($row['task_name']) ?>"
+                                                                data-description="<?= htmlspecialchars($row['description']) ?>"
+                                                                data-notes="<?= htmlspecialchars($row['notes']) ?>"
+                                                                data-due-date="<?= $row['due_date'] ?>"
+                                                                data-status="<?= $row['status'] ?>"
+                                                                data-link="<?= htmlspecialchars($row['link']) ?>">
+                                                                <i class="ri-edit-line"></i>
+                                                            </button>
+                                                            <button class="btn btn-icon delete-task-btn text-danger"
+                                                                data-bs-toggle="modal" data-bs-target="#deleteTaskModal"
+                                                                title="Delete" data-id="<?= $row['id'] ?>">
+                                                                <i class="ri-delete-bin-line"></i>
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            <?php endwhile; ?>
+                                        <?php else: ?>
+                                            <tr>
+                                                <td colspan="8" class="text-center text-muted py-4">No tasks found.</td>
+                                            </tr>
+                                        <?php endif; ?>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </nav>
+            </main>
 
-            <!-- Main Content Area -->
-            <div class="container-fluid">
-                <h2 class="">Tasks</h2>
-                <p class="lead text-muted"></p>
-                <hr class="mb-4">
+            <div class="modal fade" id="addTaskModal" tabindex="-1" aria-labelledby="addTaskModalLabel"
+                aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <form method="POST" action="../functions/save_task.php">
+                            <div class="modal-header text-dark">
+                                <h5 class="modal-title" id="addTaskModalLabel"><i class="ri-add-line me-2"></i> Create
+                                    New Task</h5>
+                                <button type="button" class="btn-close btn-close-dark" data-bs-dismiss="modal"
+                                    aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="mb-3">
+                                    <label class="form-label">Task Name</label>
+                                    <input type="text" name="task_name" class="form-control" required>
+                                </div>
 
-                <form action="/submit" method="post">
-                    <div class="table-responsive">
-                        <!-- Table remains the same, but centered in the main content area -->
-                        <table class="table table-striped table-hover table-bordered align-middle rounded-3 overflow-hidden">
-                            <thead class="table-dark">
-                                <tr>
-                                    <th scope="col" class="text-center">TYPE</th>
-                                    <th scope="col" class="text-center">TITLE</th>
-                                    <th scope="col" class="text-center">SAS F6</th>
-                                    <th scope="col" class="text-center">TRANSMITTAL</th>
-                                    <th scope="col" class="text-center">INVITATION</th>
-                                    <th scope="col" class="text-center">ENDORSEMENT</th>
-                                    <th scope="col" class="text-center">DUE DATE</th>
-                                    <th scope="col" class="text-center">STATUS</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <tr>
-                                    <td>Task A</td>
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r1c2" id="r1c2"></div></td>
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r1c3" id="r1c3"></div></td>
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r1c4" id="r1c4"></div></td>
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r1c5" id="r1c5"></div></td>
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r1c6" id="r1c6"></div></td>
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r1c7" id="r1c7"></div></td>
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r1c8" id="r1c8"></div></td>
-                                </tr>
-                                <tr>
-                                    <td>Task B</td>
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r2c2" id="r2c2"></div></td>
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r2c3" id="r2c3"></div></td>
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r2c4" id="r2c4"></div></td>
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r2c5" id="r2c5"></div></td>
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r2c6" id="r2c6"></div></td>
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r2c7" id="r2c7"></div></td>
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r2c8" id="r2c8"></div></td>
-                                </tr>
-                                <tr>
-                                    <td>Task C</td>
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r3c2" id="r3c2"></div></td>
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r3c3" id="r3c3"></div></td>
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r3c4" id="r3c4"></div></td>
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r3c5" id="r3c5"></div></td>
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r3c6" id="r3c6"></div></td>
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r3c7" id="r3c7"></div></td>
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r3c8" id="r3c8"></div></td>
-                                </tr>
-                                <tr>
-                                    <td>Task D</td>
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r4c2" id="r4c2"></div></td>
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r4c3" id="r4c3"></div></td>
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r4c4" id="r4c4"></div></td>
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r4c5" id="r4c5"></div></td>
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r4c6" id="r4c6"></div></td>
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r4c7" id="r4c7"></div></td>
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r4c8" id="r4c8"></div></td>
-                                </tr>
-                                <tr>
-                                    <td>Task E</td>
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r5c2" id="r5c2"></div></td>
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r5c3" id="r5c3"></div></td>
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r5c4" id="r5c4"></div></td>
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r5c5" id="r5c5"></div></td>
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r5c6" id="r5c6"></div></td> 
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r5c7" id="r5c7"></div></td>
-                                    <td class="text-center"><div class="form-check"><input class="form-check-input mx-auto" type="checkbox" name="r5c8" id="r5c8"></div></td>
-                                </tr>
-                            </tbody>
-                        </table>
+                                <div class="mb-3">
+                                    <label class="form-label">Assigned To</label>
+                                    <select class="form-select" name="assigned_to_id" required>
+                                        <option value="">Select User</option>
+                                        <?php foreach ($users_list as $user): ?>
+                                            <option value="<?= $user['id'] ?>"
+                                                data-email="<?= htmlspecialchars($user['email']) ?>">
+                                                <?= htmlspecialchars($user['name']) ?>
+                                                (<?= htmlspecialchars($user['type']) ?>)
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label">Description</label>
+                                    <textarea name="description" class="form-control" rows="3"></textarea>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Notes</label>
+                                    <textarea name="notes" class="form-control" rows="2"></textarea>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Due Date</label>
+                                    <input type="date" name="due_date" class="form-control" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Status</label>
+                                    <select class="form-select" name="status" required>
+                                        <?php foreach ($status_options as $status): ?>
+                                            <option value="<?= $status ?>">
+                                                <?= ucwords(str_replace('_', ' ', $status)) ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Link (e.g., Google Drive, Canva etc.)</label>
+                                    <input type="url" name="link" class="form-control" placeholder="Optional URL">
+                                </div>
+
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button type="submit" class="btn btn-comsa"><i class="ri-check-line me-1"></i>
+                                    Save Task</button>
+                            </div>
+                        </form>
                     </div>
-
-                    <div class="d-flex justify-content-end my-4">
-                        <button type="submit" class="btn btn-comsa btn-lg">Save Changes</button>
-                    </div>
-                </form>
+                </div>
             </div>
-            <!-- End Main Content Area -->
+
+            <div class="modal fade" id="editTaskModal" tabindex="-1" aria-labelledby="editTaskModalLabel"
+                aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <form method="POST" action="../functions/update_task.php">
+                            <input type="hidden" name="id" id="edit-task-id">
+                            <div class="modal-header text-dark">
+                                <h5 class="modal-title" id="editTaskModalLabel"><i class="ri-edit-line me-2"></i> Edit
+                                    Task Details</h5>
+                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                                    aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="mb-3">
+                                    <label class="form-label">Task Name</label>
+                                    <input type="text" class="form-control" id="edit-task-name" name="task_name"
+                                        required>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label">Assigned To</label>
+                                    <select class="form-select" id="edit-assigned-to-id" name="assigned_to_id" required>
+                                        <option value="">Select User</option>
+                                        <?php foreach ($users_list as $user): ?>
+                                            <option value="<?= $user['id'] ?>"
+                                                data-email="<?= htmlspecialchars($user['email']) ?>">
+                                                <?= htmlspecialchars($user['name']) ?>
+                                                (<?= htmlspecialchars($user['type']) ?>)
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label">Description</label>
+                                    <textarea name="description" class="form-control" id="edit-task-description"
+                                        rows="3"></textarea>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Notes</label>
+                                    <textarea name="notes" class="form-control" id="edit-task-notes"
+                                        rows="2"></textarea>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Due Date</label>
+                                    <input type="date" name="due_date" class="form-control" id="edit-task-due-date"
+                                        required>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Status</label>
+                                    <select class="form-select" id="edit-task-status" name="status" required>
+                                        <?php foreach ($status_options as $status): ?>
+                                            <option value="<?= $status ?>">
+                                                <?= ucwords(str_replace('_', ' ', $status)) ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Link</label>
+                                    <input type="url" name="link" class="form-control" id="edit-task-link"
+                                        placeholder="Optional URL">
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button type="submit" class="btn btn-comsa"><i class="ri-save-line me-1"></i> Save
+                                    Changes</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal fade" id="deleteTaskModal" tabindex="-1" aria-labelledby="deleteTaskModalLabel"
+                aria-hidden="true">
+                <div class="modal-dialog modal-sm">
+                    <div class="modal-content">
+                        <form method="GET" action="../functions/delete_task.php">
+                            <input type="hidden" name="id" id="delete-task-id">
+                            <div class="modal-header text-dark">
+                                <h5 class="modal-title" id="deleteTaskModalLabel"><i class="ri-alert-line me-2"></i>
+                                    Confirm Delete</h5>
+                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                                    aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <p>Are you sure you want to permanently delete this task? This action cannot be undone.
+                                </p>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button type="submit" class="btn btn-danger"><i class="ri-delete-bin-line me-1"></i>
+                                    Delete Task</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
         </div>
-        <!-- End Page Content Wrapper -->
-
     </div>
-    <!-- End Wrapper -->
 
-    <!-- 💡 Bootstrap JavaScript CDN -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" xintegrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
-    
-    <!-- Custom JS for Sidebar Toggle -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+        crossorigin="anonymous"></script>
+
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            var sidebarToggle = document.getElementById('sidebarToggle');
-            var sidebarClose = document.getElementById('sidebarClose');
-            var wrapper = document.getElementById('wrapper');
+        // Fill Edit Task Modal
+        document.querySelectorAll('.edit-task-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.getElementById('edit-task-id').value = btn.dataset.id;
+                document.getElementById('edit-task-name').value = btn.dataset.taskName;
+                document.getElementById('edit-assigned-to-id').value = btn.dataset.assignedId;
+                document.getElementById('edit-task-description').value = btn.dataset.description;
+                document.getElementById('edit-task-notes').value = btn.dataset.notes;
+                document.getElementById('edit-task-due-date').value = btn.dataset.dueDate;
+                document.getElementById('edit-task-status').value = btn.dataset.status;
+                // Handle link being 'null' or empty string
+                document.getElementById('edit-task-link').value = btn.dataset.link === 'null' ? '' : btn.dataset.link;
+            });
+        });
 
-            // Function to toggle the sidebar (open/close)
-            function toggleSidebar(e) {
-                e.preventDefault();
-                wrapper.classList.toggle('toggled');
-            }
+        // Fill Delete Task Modal
+        document.querySelectorAll('.delete-task-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.getElementById('delete-task-id').value = btn.dataset.id;
+            });
+        });
 
-            // Toggle sidebar visibility on click for the hamburger button
-            if (sidebarToggle) {
-                sidebarToggle.addEventListener('click', toggleSidebar);
-            }
-            
-            // Toggle sidebar visibility on click for the close button
-            if (sidebarClose) {
-                sidebarClose.addEventListener('click', toggleSidebar);
-            }
+        // Add JavaScript for the mobile sidebar toggle (if needed)
+        document.getElementById('sidebarToggle')?.addEventListener('click', () => {
+            // Your logic to show/hide the sidebar on mobile (if applicable)
         });
     </script>
 </body>
+
 </html>

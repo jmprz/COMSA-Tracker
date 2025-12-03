@@ -77,6 +77,7 @@ $deadline_events = $conn->query("
 
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -120,7 +121,7 @@ $deadline_events = $conn->query("
 
         .stat-card:hover {
             transform: translateY(-5px);
-            box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
         }
 
         .stat-icon {
@@ -148,12 +149,29 @@ $deadline_events = $conn->query("
         }
 
         /* Color schemes for different stats */
-        .stat-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
-        .stat-success { background: linear-gradient(135deg, #09b003 0%, #007a00 100%); }
-        .stat-warning { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
-        .stat-info { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
-        .stat-danger { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); }
-        .stat-secondary { background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%); }
+        .stat-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+
+        .stat-success {
+            background: linear-gradient(135deg, #09b003 0%, #007a00 100%);
+        }
+
+        .stat-warning {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        .stat-info {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+
+        .stat-danger {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+        }
+
+        .stat-secondary {
+            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+        }
 
         /* Table styling */
         .dashboard-table {
@@ -194,6 +212,7 @@ $deadline_events = $conn->query("
         }
     </style>
 </head>
+
 <body>
 
     <div id="wrapper">
@@ -206,20 +225,28 @@ $deadline_events = $conn->query("
                 </a>
 
                 <div class="d-flex align-items-center gap-3 d-none d-lg-flex">
-                    <a href="admin_dashboard.php" class="btn btn-active rounded-3 d-flex align-items-center justify-content-center" style="width:50px; height:50px;">
+                    <a href="admin_dashboard.php"
+                        class="btn btn-active rounded-3 d-flex align-items-center justify-content-center"
+                        style="width:50px; height:50px;">
                         <i class="ri-dashboard-line fs-4"></i>
                     </a>
-                    <a href="events.php" class="btn btn-light rounded-3 d-flex align-items-center justify-content-center" style="width:50px; height:50px;">
+                    <a href="events.php"
+                        class="btn btn-light rounded-3 d-flex align-items-center justify-content-center"
+                        style="width:50px; height:50px;">
                         <i class="ri-calendar-schedule-line fs-4"></i>
                     </a>
-                    <a href="tasks.php" class="btn btn-light rounded-3 d-flex align-items-center justify-content-center" style="width:50px; height:50px;">
+                    <a href="tasks.php" class="btn btn-light rounded-3 d-flex align-items-center justify-content-center"
+                        style="width:50px; height:50px;">
                         <i class="ri-list-check-2 fs-4"></i>
                     </a>
-                    <a href="users.php" class="btn btn-light rounded-3 d-flex align-items-center justify-content-center" style="width:50px; height:50px;">
+                    <a href="users.php" class="btn btn-light rounded-3 d-flex align-items-center justify-content-center"
+                        style="width:50px; height:50px;">
                         <i class="ri-user-3-line fs-4"></i>
                     </a>
-                    <a href="settings.php" class="btn btn-light rounded-3 d-flex align-items-center justify-content-center" style="width:50px; height:50px;">
-                        <i class="ri-settings-line fs-4"></i>
+                    <a href="../logout.php"
+                        class="btn btn-light rounded-3 d-flex align-items-center justify-content-center"
+                        style="width:50px; height:50px;">
+                        <i class="ri-logout-box-r-line fs-4"></i>
                     </a>
                 </div>
             </div>
@@ -356,30 +383,32 @@ $deadline_events = $conn->query("
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            <?php while ($event = $recent_events->fetch_assoc()): 
+                                            <?php while ($event = $recent_events->fetch_assoc()):
                                                 $progress = (($event['printed_count'] ?? 0) + ($event['signed_count'] ?? 0)) / 8 * 100;
-                                                $status_class = match($event['status']) {
+                                                $status_class = match ($event['status']) {
                                                     'Pending' => 'bg-warning-subtle text-warning',
                                                     'Ongoing' => 'bg-info-subtle text-info',
                                                     'Completed' => 'bg-success-subtle text-success',
                                                     default => 'bg-light text-secondary'
                                                 };
-                                            ?>
-                                            <tr>
-                                                <td>
-                                                    <div class="event-title"><?= $event['title'] ?></div>
-                                                    <small class="text-muted"><?= $event['type'] ?></small>
-                                                </td>
-                                                <td>
-                                                    <span class="badge mini-badge <?= $status_class ?>"><?= $event['status'] ?></span>
-                                                </td>
-                                                <td>
-                                                    <div class="progress progress-thin">
-                                                        <div class="progress-bar bg-success" style="width: <?= $progress ?>%"></div>
-                                                    </div>
-                                                    <small class="text-muted"><?= round($progress) ?>%</small>
-                                                </td>
-                                            </tr>
+                                                ?>
+                                                <tr>
+                                                    <td>
+                                                        <div class="event-title"><?= $event['title'] ?></div>
+                                                        <small class="text-muted"><?= $event['type'] ?></small>
+                                                    </td>
+                                                    <td>
+                                                        <span
+                                                            class="badge mini-badge <?= $status_class ?>"><?= $event['status'] ?></span>
+                                                    </td>
+                                                    <td>
+                                                        <div class="progress progress-thin">
+                                                            <div class="progress-bar bg-success"
+                                                                style="width: <?= $progress ?>%"></div>
+                                                        </div>
+                                                        <small class="text-muted"><?= round($progress) ?>%</small>
+                                                    </td>
+                                                </tr>
                                             <?php endwhile; ?>
                                         </tbody>
                                     </table>
@@ -396,24 +425,25 @@ $deadline_events = $conn->query("
                                     <h5 class="fw-bold mb-0">Upcoming Deadlines</h5>
                                 </div>
                                 <div class="list-group list-group-flush">
-                                    <?php 
+                                    <?php
                                     if ($deadline_events->num_rows > 0) {
-                                        while ($deadline = $deadline_events->fetch_assoc()): 
+                                        while ($deadline = $deadline_events->fetch_assoc()):
                                             $days_left = $deadline['days_remaining'];
                                             $urgency = $days_left <= 2 ? 'danger' : ($days_left <= 5 ? 'warning' : 'info');
-                                    ?>
-                                    <div class="list-group-item border-0 px-0">
-                                        <div class="d-flex justify-content-between align-items-start">
-                                            <div>
-                                                <h6 class="mb-1"><?= htmlspecialchars($deadline['title']) ?></h6>
-                                                <small class="text-muted"><?= date('M j, Y', strtotime($deadline['due_date'])) ?></small>
+                                            ?>
+                                            <div class="list-group-item border-0 px-0">
+                                                <div class="d-flex justify-content-between align-items-start">
+                                                    <div>
+                                                        <h6 class="mb-1"><?= htmlspecialchars($deadline['title']) ?></h6>
+                                                        <small
+                                                            class="text-muted"><?= date('M j, Y', strtotime($deadline['due_date'])) ?></small>
+                                                    </div>
+                                                    <span class="badge bg-<?= $urgency ?>-subtle text-<?= $urgency ?>">
+                                                        <?= $days_left ?> day<?= $days_left != 1 ? 's' : '' ?>
+                                                    </span>
+                                                </div>
                                             </div>
-                                            <span class="badge bg-<?= $urgency ?>-subtle text-<?= $urgency ?>">
-                                                <?= $days_left ?> day<?= $days_left != 1 ? 's' : '' ?>
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <?php 
+                                            <?php
                                         endwhile;
                                     } else {
                                         echo '<p class="text-muted text-center py-3">No upcoming deadlines</p>';
@@ -430,4 +460,5 @@ $deadline_events = $conn->query("
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
+
 </html>

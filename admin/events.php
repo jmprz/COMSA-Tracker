@@ -156,10 +156,10 @@ $result = $conn->query("
                         <i class="ri-user-3-line fs-4"></i>
                     </a>
 
-                    <a href="settings.php"
+                    <a href="../logout.php"
                         class="btn btn-light rounded-3 d-flex align-items-center justify-content-center"
                         style="width:50px; height:50px;">
-                        <i class="ri-settings-line fs-4"></i>
+                        <i class="ri-logout-box-r-line fs-4"></i>
                     </a>
 
                 </div>

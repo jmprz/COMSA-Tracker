@@ -116,3 +116,23 @@ CREATE TABLE `participant_checklist` (
     `p_cor` TINYINT(1) DEFAULT 0, 
     FOREIGN KEY (`participant_id`) REFERENCES `participants`(`id`) ON DELETE CASCADE
 );
+
+-- Modify users.id to be UNSIGNED
+ALTER TABLE users
+MODIFY id INT(11) UNSIGNED AUTO_INCREMENT;
+
+
+-- Create Tasks Table
+CREATE TABLE tasks (
+    id INT(11) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    assigned_to_id INT(11) UNSIGNED NOT NULL, 
+    task_name VARCHAR(255) NOT NULL,
+    description TEXT,
+    notes TEXT,
+    due_date DATE,
+    status ENUM('not_started', 'in_progress', 'completed') NOT NULL DEFAULT 'not_started',
+    link VARCHAR(255), 
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (assigned_to_id) REFERENCES users(id) ON DELETE RESTRICT ON UPDATE CASCADE
+);
