@@ -71,8 +71,71 @@ $stmt->close();
     <link rel="stylesheet" href="styles.css">
 
     <style>
-        /* --- MODERN CARD STYLES --- */
+        /* 1. Base State: Hide vertical scroll initially for a clean transition */
+        body {
+            overflow-y: hidden;
+        }
 
+        /* 2. Loading Screen: Fixed, full coverage, high Z-index */
+        #loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #ffffff;
+            /* Or your preferred background color */
+            z-index: 9999;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: opacity 0.5s ease-out;
+            /* Fade-out transition */
+        }
+
+        #loading-screen.hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        /* 3. Spinner Styles (Optional, customize colors if needed) */
+        .loader {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #09b003;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* 4. Main Content Transition (Crucial) */
+        #page-content-wrapper {
+            /* Initial Hidden State */
+            opacity: 0;
+            transform: translateY(20px);
+            /* Starts slightly below the final position */
+            /* Transition Properties */
+            transition: opacity 0.8s ease-out, transform 0.8s ease-out;
+        }
+
+        #page-content-wrapper.page-loaded {
+            /* Final Visible State */
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* --- MODERN CARD STYLES --- */
         /* Mobile-first styles (default: stacked columns) */
         .task-board {
             display: block;
@@ -206,88 +269,13 @@ $stmt->close();
                 display: none !important;
             }
         }
-
-        /* --- DARK MODE OVERRIDES (Aesthetic Charcoal) --- */
-
-        body.dark-mode {
-            background-color: #1a1a1a !important;
-            color: #ffffff !important;
-        }
-
-        .dark-mode .navbar,
-        .dark-mode .bg-white {
-            background-color: #2c2c2c !important;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
-            border-bottom: 1px solid #444;
-        }
-
-        .dark-mode .card,
-        .dark-mode .status-column,
-        .dark-mode .modal-content {
-            background-color: #2c2c2c !important;
-            color: #ffffff !important;
-            border: 1px solid #444;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
-        }
-
-        .dark-mode .task-card:hover {
-            background-color: #3a3a3a !important;
-        }
-
-        /* Dark mode typography and links */
-        .dark-mode .task-title-modern {
-            color: #ffffff !important;
-        }
-
-        .dark-mode .task-due-date-text,
-        .dark-mode .text-muted,
-        .dark-mode .task-description-text {
-            color: #b0b0b0 !important;
-        }
-
-        .dark-mode a {
-            color: #84e184;
-            /* Light Green Accent */
-        }
-
-        /* Form elements in dark mode */
-        .dark-mode .form-control,
-        .dark-mode .form-select {
-            background-color: #1a1a1a;
-            color: #ffffff;
-            border-color: #444;
-        }
-
-        .dark-mode .form-control:focus,
-        .dark-mode .form-select:focus {
-            background-color: #2c2c2c;
-            border-color: #84e184;
-            box-shadow: 0 0 0 0.25rem rgba(132, 225, 132, 0.3);
-        }
-
-        .dark-mode .btn-comsa {
-            /* Example using a hardcoded lightened green for contrast */
-            background-color: #4CAF50 !important;
-            color: white !important;
-            border-color: #388E3C !important;
-        }
-
-        /* Dark Mode Task Status Overrides */
-        .dark-mode .task-card.completed::before {
-            background-color: #84e184;
-        }
-
-        .dark-mode .task-card.not_started::before {
-            background-color: #ffb74d;
-        }
-
-        .dark-mode .task-card.in_progress::before {
-            background-color: #64b5f6;
-        }
     </style>
 </head>
 
 <body>
+    <div id="loading-screen">
+        <div class="loader"></div>
+    </div>
     <nav class="navbar navbar-light bg-white shadow-sm fixed-top">
         <div class="container-xxl d-flex align-items-center justify-content-between">
             <a class="navbar-brand d-flex align-items-center gap-2" href="#">
@@ -298,7 +286,7 @@ $stmt->close();
 
             <div class="d-flex align-items-center gap-2">
                 <span class="navbar-text me-1 fw-medium d-none d-sm-inline">
-                   <?= htmlspecialchars($user_name) ?> | <?= htmlspecialchars($type) ?>
+                    <?= htmlspecialchars($user_name) ?> | <?= htmlspecialchars($type) ?>
                 </span>
                 <a href="logout.php" class="btn btn-light">
                     <i class="ri-logout-box-r-line fs-5"></i>
@@ -311,7 +299,7 @@ $stmt->close();
         <div id="page-content-wrapper">
             <main class="container pt-5 mt-5">
                 <span class="navbar-text me-1 fw-medium d-sm-none d-lg-none d-sm-inline">
-                     <?= htmlspecialchars($user_name) ?> | <?= htmlspecialchars($type) ?>
+                    <?= htmlspecialchars($user_name) ?> | <?= htmlspecialchars($type) ?>
                 </span>
                 <h1 class="mt-4 mb-4 fw-bold text-dark fs-3">My Assigned Tasks</h1>
                 <hr>
@@ -432,6 +420,27 @@ $stmt->close();
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
         integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
         crossorigin="anonymous"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', (event) => {
+            const loadingScreen = document.getElementById('loading-screen');
+            const pageContent = document.getElementById('page-content-wrapper');
+            const body = document.body;
+
+            // This function runs once all external resources (images, CSS) are loaded
+            window.onload = function () {
+                // Step 1: Add the class to start the page content transition
+                pageContent.classList.add('page-loaded');
+
+                // Step 2: Fade out the loading screen
+                loadingScreen.classList.add('hidden');
+
+                // Step 3: Re-enable vertical scrolling after the loading screen fades
+                setTimeout(() => {
+                    body.style.overflowY = 'auto';
+                }, 500); // 500ms delay matches the loading screen's opacity transition
+            };
+        });
+    </script>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {

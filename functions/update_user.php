@@ -47,7 +47,7 @@ $stmt = $conn->prepare($sql);
 
 if (!$stmt) {
     $_SESSION['error_message'] = "Database error: Failed to prepare statement (" . $conn->error . ")";
-    header("Location: ../users.php");
+    header("Location: ../admin/users.php");
     exit();
 }
 

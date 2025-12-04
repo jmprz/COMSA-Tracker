@@ -4,65 +4,73 @@ require_once "../functions/config.php";
 
 // Admin check
 if (!isset($_SESSION['student_number']) || $_SESSION['is_admin'] != 1) {
-    header("Location: login.php");
+    header("Location: ../login.php");
     exit();
 }
 
-// Fetch dashboard statistics
+// Initialize stats
 $stats = [
+    'total_users' => 0,
+    'total_tasks' => 0,
+    'task_pending' => 0,
+    'task_ongoing' => 0,
+    'task_completed' => 0,
     'total_events' => 0,
-    'pending' => 0,
-    'ongoing' => 0,
-    'completed' => 0,
-    'total_printed' => 0,
-    'total_signed' => 0,
+    'event_pending' => 0,
+    'event_ongoing' => 0,
+    'event_completed' => 0,
     'upcoming_deadlines' => 0
 ];
 
-// Get event counts by status
-$status_query = $conn->query("
+// 1. Fetch Total Users
+$user_query = $conn->query("SELECT COUNT(*) as total_users FROM users");
+$stats['total_users'] = $user_query->fetch_assoc()['total_users'] ?? 0;
+
+// 2. Fetch Task Counts by Status
+$task_status_query = $conn->query("
+    SELECT status, COUNT(*) as count 
+    FROM tasks 
+    GROUP BY status
+");
+while ($row = $task_status_query->fetch_assoc()) {
+    $stats['total_tasks'] += $row['count'];
+    $stats['task_' . strtolower($row['status'])] = $row['count'];
+}
+
+// 3. Fetch Event Counts by Status
+$event_status_query = $conn->query("
     SELECT status, COUNT(*) as count 
     FROM events 
     GROUP BY status
 ");
-while ($row = $status_query->fetch_assoc()) {
+while ($row = $event_status_query->fetch_assoc()) {
     $stats['total_events'] += $row['count'];
-    $stats[strtolower($row['status'])] = $row['count'];
+    $stats['event_' . strtolower($row['status'])] = $row['count'];
 }
 
-// Get printed/signed totals
-$docs_query = $conn->query("
-    SELECT 
-        SUM(ep.sas_f6 + ep.transmittal + ep.invitation + ep.endorsement) as printed_total,
-        SUM(es.sas_f6 + es.transmittal + es.invitation + es.endorsement) as signed_total
-    FROM events e
-    LEFT JOIN events_printed ep ON e.id = ep.event_id
-    LEFT JOIN events_signed es ON e.id = es.event_id
-");
-$docs = $docs_query->fetch_assoc();
-$stats['total_printed'] = $docs['printed_total'] ?? 0;
-$stats['total_signed'] = $docs['signed_total'] ?? 0;
 
-// Get upcoming deadlines (next 7 days)
+// 4. Get upcoming deadlines (next 7 days) - Using events as source
 $upcoming_query = $conn->query("
     SELECT COUNT(*) as count 
     FROM events 
     WHERE due_date BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)
     AND status != 'Completed'
 ");
-$stats['upcoming_deadlines'] = $upcoming_query->fetch_assoc()['count'];
+$stats['upcoming_deadlines'] = $upcoming_query->fetch_assoc()['count'] ?? 0;
+
 
 // Fetch recent events (last 5)
-$recent_events = $conn->query("
+$recent_events_query = "
     SELECT e.*, 
-           ep.sas_f6 + ep.transmittal + ep.invitation + ep.endorsement as printed_count,
-           es.sas_f6 + es.transmittal + es.invitation + es.endorsement as signed_count
+            COALESCE(ep.sas_f6, 0) + COALESCE(ep.transmittal, 0) + COALESCE(ep.invitation, 0) + COALESCE(ep.endorsement, 0) as printed_count,
+            COALESCE(es.sas_f6, 0) + COALESCE(es.transmittal, 0) + COALESCE(es.invitation, 0) + COALESCE(es.endorsement, 0) as signed_count
     FROM events e
     LEFT JOIN events_printed ep ON e.id = ep.event_id
     LEFT JOIN events_signed es ON e.id = es.event_id
     ORDER BY e.id DESC
     LIMIT 5
-");
+";
+$recent_events = $conn->query($recent_events_query);
 
 // Fetch upcoming deadlines
 $deadline_events = $conn->query("
@@ -91,6 +99,8 @@ $deadline_events = $conn->query("
             padding-top: 0;
             padding-bottom: 20px;
             background-color: #f8f9fa;
+            /* Hide vertical overflow initially for transition effect */
+            overflow-y: hidden;
         }
 
         #wrapper {
@@ -102,13 +112,67 @@ $deadline_events = $conn->query("
             flex-grow: 1;
             width: 100%;
             padding-top: 70px;
+            /* Initial state for page transition */
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.5s ease-out, transform 0.5s ease-out;
+        }
+
+        /* Final state for page transition after load */
+        .page-loaded #page-content-wrapper {
+            opacity: 1;
+            transform: translateY(0);
         }
 
         .top-header {
             width: 100%;
-            padding-left: 250px;
+            padding-left: 0;
+            /* Adjusted for full screen view */
             z-index: 1000;
         }
+
+        /* --- LOADING SCREEN STYLES (NEW) --- */
+        #loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #ffffff;
+            /* White background */
+            z-index: 9999;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: opacity 0.5s ease-out;
+        }
+
+        #loading-screen.hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        .loader {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #09b003;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* --- END LOADING SCREEN STYLES --- */
 
         /* Stats Cards */
         .stat-card {
@@ -148,30 +212,47 @@ $deadline_events = $conn->query("
             letter-spacing: 0.5px;
         }
 
-        /* Color schemes for different stats */
-        .stat-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        /* --- UPDATED COLOR SCHEMES FOR ICONS --- */
+
+        /* Total Users - Purple */
+        .stat-purple {
+            background: linear-gradient(135deg, #7F00FF 0%, #E100FF 100%);
         }
 
+        .stat-purple-text {
+            color: #6f42c1;
+        }
+
+        /* Total Tasks & Events - Orange */
+        .stat-orange {
+            background: linear-gradient(135deg, #FF9933 0%, #FF6600 100%);
+        }
+
+        .stat-orange-text {
+            color: #fd7e14;
+        }
+
+        /* Completed/Success - Green */
         .stat-success {
             background: linear-gradient(135deg, #09b003 0%, #007a00 100%);
         }
 
-        .stat-warning {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-        }
-
-        .stat-info {
+        /* Ongoing/In Progress - Blue */
+        .stat-progress {
             background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
         }
 
-        .stat-danger {
-            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+        /* Pending/Awaiting Start - YELLOW GRADIENT (MODIFIED) */
+        .stat-pending {
+            background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+            /* Gold to Orange */
         }
 
-        .stat-secondary {
-            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+        /* Deadlines/Urgent - Red */
+        .stat-urgent {
+            background: linear-gradient(135deg, #FF4B2B 0%, #FF416C 100%);
         }
+
 
         /* Table styling */
         .dashboard-table {
@@ -214,9 +295,10 @@ $deadline_events = $conn->query("
 </head>
 
 <body>
-
+    <div id="loading-screen">
+        <div class="loader"></div>
+    </div>
     <div id="wrapper">
-        <!-- Navbar -->
         <nav class="navbar navbar-light bg-white shadow-sm fixed-top">
             <div class="container-xxl d-flex align-items-center justify-content-between">
                 <a class="navbar-brand fs-2 fw-bold d-flex align-items-center gap-2" href="#">
@@ -262,110 +344,147 @@ $deadline_events = $conn->query("
             </nav>
 
             <main class="container-md py-5">
-                <!-- Welcome Section -->
                 <div class="row mb-4">
                     <div class="col-12">
                         <h2 class="fw-bold mb-1">Dashboard Overview</h2>
-                        <p class="text-muted">Welcome back! Here's what's happening with your events.</p>
+                        <p class="text-muted">Welcome back! Here's what's happening with your accounts, tasks, and
+                            events.</p>
                     </div>
                 </div>
 
-                <!-- Stats Cards -->
                 <div class="row g-4 mb-4">
-                    <div class="col-md-6 col-lg-4">
-                        <div class="card stat-card shadow-sm">
+
+                    <div class="col-lg-12 mb-2">
+                        <h4 class="text-secondary fw-bold border-bottom pb-2">Personnel & Event Overview</h4>
+                    </div>
+
+                    <div class="col-md-6 col-lg-3">
+                        <div class="card stat-card shadow-sm bg-white">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <div class="stat-label">Total Users</div>
+                                    <div class="stat-value stat-purple-text"><?= $stats['total_users'] ?></div>
+                                    <small class="text-muted">Registered accounts</small>
+                                </div>
+                                <div class="stat-icon stat-purple text-white">
+                                    <i class="ri-user-3-line"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6 col-lg-3">
+                        <div class="card stat-card shadow-sm bg-white">
                             <div class="d-flex justify-content-between align-items-start">
                                 <div>
                                     <div class="stat-label">Total Events</div>
-                                    <div class="stat-value"><?= $stats['total_events'] ?></div>
-                                    <small class="text-muted">All time</small>
+                                    <div class="stat-value stat-orange-text"><?= $stats['total_events'] ?></div>
+                                    <small class="text-muted">Active and archived</small>
                                 </div>
-                                <div class="stat-icon stat-primary text-white">
+                                <div class="stat-icon stat-orange text-white">
                                     <i class="ri-calendar-line"></i>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <div class="col-md-6 col-lg-4">
-                        <div class="card stat-card shadow-sm">
-                            <div class="d-flex justify-content-between align-items-start">
-                                <div>
-                                    <div class="stat-label">Ongoing Events</div>
-                                    <div class="stat-value text-info"><?= $stats['ongoing'] ?></div>
-                                    <small class="text-muted">In progress</small>
-                                </div>
-                                <div class="stat-icon stat-info text-white">
-                                    <i class="ri-time-line"></i>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="col-md-6 col-lg-4">
-                        <div class="card stat-card shadow-sm">
-                            <div class="d-flex justify-content-between align-items-start">
-                                <div>
-                                    <div class="stat-label">Completed</div>
-                                    <div class="stat-value text-success"><?= $stats['completed'] ?></div>
-                                    <small class="text-muted">Finished events</small>
-                                </div>
-                                <div class="stat-icon stat-success text-white">
-                                    <i class="ri-checkbox-circle-line"></i>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="col-md-6 col-lg-4">
-                        <div class="card stat-card shadow-sm">
-                            <div class="d-flex justify-content-between align-items-start">
-                                <div>
-                                    <div class="stat-label">Pending</div>
-                                    <div class="stat-value text-warning"><?= $stats['pending'] ?></div>
-                                    <small class="text-muted">Not started</small>
-                                </div>
-                                <div class="stat-icon stat-warning text-white">
-                                    <i class="ri-hourglass-line"></i>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="col-md-6 col-lg-4">
-                        <div class="card stat-card shadow-sm">
-                            <div class="d-flex justify-content-between align-items-start">
-                                <div>
-                                    <div class="stat-label">Documents Printed</div>
-                                    <div class="stat-value text-secondary"><?= $stats['total_printed'] ?></div>
-                                    <small class="text-muted">Out of <?= $stats['total_events'] * 4 ?> total</small>
-                                </div>
-                                <div class="stat-icon stat-secondary text-white">
-                                    <i class="ri-printer-line"></i>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="col-md-6 col-lg-4">
-                        <div class="card stat-card shadow-sm">
+                    <div class="col-md-6 col-lg-3">
+                        <div class="card stat-card shadow-sm bg-white">
                             <div class="d-flex justify-content-between align-items-start">
                                 <div>
                                     <div class="stat-label">Upcoming Deadlines</div>
                                     <div class="stat-value text-danger"><?= $stats['upcoming_deadlines'] ?></div>
-                                    <small class="text-muted">Next 7 days</small>
+                                    <small class="text-muted">Events in next 7 days</small>
                                 </div>
-                                <div class="stat-icon stat-danger text-white">
+                                <div class="stat-icon stat-urgent text-white">
                                     <i class="ri-alarm-warning-line"></i>
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>
 
-                <!-- Two Column Layout for Tables -->
+                    <div class="col-md-6 col-lg-3">
+                        <div class="card stat-card shadow-sm bg-white">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <div class="stat-label">Completed Events</div>
+                                    <div class="stat-value text-success"><?= $stats['event_completed'] ?></div>
+                                    <small class="text-muted">Total finished events</small>
+                                </div>
+                                <div class="stat-icon stat-success text-white">
+                                    <i class="ri-calendar-check-line"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-12 mt-4 mb-2">
+                        <h4 class="text-secondary fw-bold border-bottom pb-2">Task Management Status</h4>
+                    </div>
+
+                    <div class="col-md-6 col-lg-3">
+                        <div class="card stat-card shadow-sm bg-white">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <div class="stat-label">Total Tasks</div>
+                                    <div class="stat-value stat-orange-text"><?= $stats['total_tasks'] ?></div>
+                                    <small class="text-muted">Total tasks created</small>
+                                </div>
+                                <div class="stat-icon stat-orange text-white">
+                                    <i class="ri-clipboard-line"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 col-lg-3">
+                        <div class="card stat-card shadow-sm bg-white">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <div class="stat-label">Pending Tasks</div>
+                                    <div class="stat-value text-warning"><?= $stats['task_pending'] ?></div>
+                                    <small class="text-muted">Awaiting start</small>
+                                </div>
+                                <div class="stat-icon stat-pending text-white">
+                                    <i class="ri-timer-line"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6 col-lg-3">
+                        <div class="card stat-card shadow-sm bg-white">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <div class="stat-label">Ongoing Tasks</div>
+                                    <div class="stat-value text-info"><?= $stats['task_ongoing'] ?></div>
+                                    <small class="text-muted">Currently in progress</small>
+                                </div>
+                                <div class="stat-icon stat-progress text-white">
+                                    <i class="ri-loader-4-line"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+
+
+                    <div class="col-md-6 col-lg-3">
+                        <div class="card stat-card shadow-sm bg-white">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <div class="stat-label">Tasks Completed</div>
+                                    <div class="stat-value text-success"><?= $stats['task_completed'] ?></div>
+                                    <small class="text-muted">Finished and reviewed</small>
+                                </div>
+                                <div class="stat-icon stat-success text-white">
+                                    <i class="ri-check-line"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
                 <div class="row g-4">
-                    <!-- Recent Events -->
                     <div class="col-lg-7">
                         <div class="card shadow-sm border-0">
                             <div class="card-body">
@@ -394,8 +513,10 @@ $deadline_events = $conn->query("
                                                 ?>
                                                 <tr>
                                                     <td>
-                                                        <div class="event-title"><?= $event['title'] ?></div>
-                                                        <small class="text-muted"><?= $event['type'] ?></small>
+                                                        <div class="event-title"><?= htmlspecialchars($event['title']) ?>
+                                                        </div>
+                                                        <small
+                                                            class="text-muted"><?= htmlspecialchars($event['type']) ?></small>
                                                     </td>
                                                     <td>
                                                         <span
@@ -417,7 +538,6 @@ $deadline_events = $conn->query("
                         </div>
                     </div>
 
-                    <!-- Upcoming Deadlines -->
                     <div class="col-lg-5">
                         <div class="card shadow-sm border-0">
                             <div class="card-body">
@@ -459,6 +579,27 @@ $deadline_events = $conn->query("
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // JavaScript for Loading Screen and Page Animation
+        document.addEventListener('DOMContentLoaded', (event) => {
+            const loadingScreen = document.getElementById('loading-screen');
+            const body = document.body;
+
+            // Wait for the entire page (including images, resources) to load
+            window.onload = function () {
+                // 1. Apply page-loaded class for the main content transition
+                body.classList.add('page-loaded');
+
+                // 2. Hide the loading screen with a fade-out effect
+                loadingScreen.classList.add('hidden');
+
+                // 3. Re-enable vertical scrolling after the animation is finished
+                setTimeout(() => {
+                    body.style.overflowY = 'auto';
+                }, 500); // Match the CSS transition duration (0.5s)
+            };
+        });
+    </script>
 </body>
 
 </html>

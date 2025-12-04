@@ -35,12 +35,71 @@ $result = $conn->query("
     <link rel="stylesheet" href="../styles.css">
     <link href="https://cdn.jsdelivr.net/npm/remixicon@4.5.0/fonts/remixicon.css" rel="stylesheet">
     <style>
-        /* 1. Remove unnecessary top padding and set background */
+        /* 1. Base State: Hide vertical scroll initially for a clean transition */
         body {
-            padding-top: 0;
-            padding-bottom: 20px;
-            background-color: #f8f9fa;
+            overflow-y: hidden;
         }
+
+        /* 2. Loading Screen: Fixed, full coverage, high Z-index */
+        #loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #ffffff;
+            /* Or your preferred background color */
+            z-index: 9999;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: opacity 0.5s ease-out;
+            /* Fade-out transition */
+        }
+
+        #loading-screen.hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        /* 3. Spinner Styles (Optional, customize colors if needed) */
+        .loader {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #09b003;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* 4. Main Content Transition (Crucial) */
+        #page-content-wrapper {
+            /* Initial Hidden State */
+            opacity: 0;
+            transform: translateY(20px);
+            /* Starts slightly below the final position */
+            /* Transition Properties */
+            transition: opacity 0.8s ease-out, transform 0.8s ease-out;
+        }
+
+        #page-content-wrapper.page-loaded {
+            /* Final Visible State */
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* 1. Remove unnecessary top padding and set background */
 
         /* 2. Main wrapper uses Flexbox for side-by-side layout */
         #wrapper {
@@ -122,7 +181,9 @@ $result = $conn->query("
 </head>
 
 <body>
-
+    <div id="loading-screen">
+        <div class="loader"></div>
+    </div>
     <div id="wrapper">
         <nav class="navbar navbar-light bg-white shadow-sm fixed-top">
             <div class="container-xxl d-flex align-items-center justify-content-between">
@@ -352,8 +413,11 @@ $result = $conn->query("
                                     aria-label="Close"></button>
                             </div>
                             <div class="modal-body">
-                                <div class="mb-3"><label class="form-label">Type</label><input type="text"
-                                        class="form-control" id="edit-type" name="type" required></div>
+                                <div class="mb-3"><label class="form-label">Type</label><select class="form-select"
+                                        id="edit-type" name="type" required>
+                                        <option value="Off-Campus">Off-Campus</option>
+                                        <option value="On-Campus">On-Campus</option>
+                                    </select></div>
                                 <div class="mb-3"><label class="form-label">Title</label><input type="text"
                                         class="form-control" id="edit-title" name="title" required></div>
                                 <div class="mb-3"><label class="form-label">Due Date</label><input type="date"
@@ -733,6 +797,27 @@ $result = $conn->query("
         integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
         crossorigin="anonymous"></script>
 
+    <script>
+        document.addEventListener('DOMContentLoaded', (event) => {
+            const loadingScreen = document.getElementById('loading-screen');
+            const pageContent = document.getElementById('page-content-wrapper');
+            const body = document.body;
+
+            // This function runs once all external resources (images, CSS) are loaded
+            window.onload = function () {
+                // Step 1: Add the class to start the page content transition
+                pageContent.classList.add('page-loaded');
+
+                // Step 2: Fade out the loading screen
+                loadingScreen.classList.add('hidden');
+
+                // Step 3: Re-enable vertical scrolling after the loading screen fades
+                setTimeout(() => {
+                    body.style.overflowY = 'auto';
+                }, 500); // 500ms delay matches the loading screen's opacity transition
+            };
+        });
+    </script>
     <script>
         // --- EXISTING MODAL FILLERS (No Change) ---
 
