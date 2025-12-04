@@ -132,13 +132,19 @@ $result = $conn->query($sql_query);
             transform: translateY(20px);
             /* Starts slightly below the final position */
             /* Transition Properties */
-            transition: opacity 0.8s ease-out, transform 0.8s ease-out;
+            transition: opacity 0.3s ease-out, transform 0.3s ease-out;
         }
 
         #page-content-wrapper.page-loaded {
             /* Final Visible State */
             opacity: 1;
             transform: translateY(0);
+        }
+
+        body.modal-open #page-content-wrapper {
+            opacity: 1 !important;
+            transform: none !important;
+            transition: none !important;
         }
 
         #wrapper {
@@ -605,6 +611,10 @@ $result = $conn->query($sql_query);
                     body.style.overflowY = 'auto';
                 }, 500); // 500ms delay matches the loading screen's opacity transition
             };
+        });
+        window.addEventListener("load", () => {
+            document.getElementById("page-content-wrapper").classList.add("page-loaded");
+            document.body.style.overflowY = "auto";
         });
     </script>
 

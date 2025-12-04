@@ -90,7 +90,7 @@ $result = $conn->query("
             transform: translateY(20px);
             /* Starts slightly below the final position */
             /* Transition Properties */
-            transition: opacity 0.8s ease-out, transform 0.8s ease-out;
+            transition: opacity 0.3s ease-out, transform 0.3s ease-out;
         }
 
         #page-content-wrapper.page-loaded {
@@ -98,6 +98,7 @@ $result = $conn->query("
             opacity: 1;
             transform: translateY(0);
         }
+        
 
         /* 1. Remove unnecessary top padding and set background */
 
@@ -116,6 +117,12 @@ $result = $conn->query("
             /* Padding for the fixed top header */
         }
 
+       body.modal-open #page-content-wrapper {
+            opacity: 1 !important;
+            transform: none !important;
+            transition: none !important;
+        }
+        
         .top-header {
             width: 100%;
             padding-left: 250px;
@@ -635,7 +642,8 @@ $result = $conn->query("
                     </div>
                 </div>
             </div>
-            <div class="modal fade" id="participantChecklistModal" tabindex="-1"
+        </div>
+         <div class="modal fade" id="participantChecklistModal" tabindex="-1"
                 aria-labelledby="participantChecklistModalLabel" aria-hidden="true">
                 <div class="modal-dialog modal-sm">
                     <div class="modal-content">
@@ -724,7 +732,6 @@ $result = $conn->query("
                     </div>
                 </div>
             </div>
-        </div>
         <div class="modal fade" id="editParticipantModal" tabindex="-1" aria-labelledby="editParticipantModalLabel"
             aria-hidden="true">
             <div class="modal-dialog">
@@ -817,6 +824,11 @@ $result = $conn->query("
                 }, 500); // 500ms delay matches the loading screen's opacity transition
             };
         });
+        window.addEventListener("load", () => {
+            document.getElementById("page-content-wrapper").classList.add("page-loaded");
+            document.body.style.overflowY = "auto";
+        });
+
     </script>
     <script>
         // --- EXISTING MODAL FILLERS (No Change) ---
