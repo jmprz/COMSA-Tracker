@@ -1,6 +1,6 @@
 # COMSA Tracker
 
-A PHP-based event and task management system for Computer Science Students Association (COMSA) - EARIST Manila
+A PHP-based event and task management system for Computer Science Student Association (COMSA) - EARIST Manila
 
 ## Features
 - User authentication (admin and regular users)
