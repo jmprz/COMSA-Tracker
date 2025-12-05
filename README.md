@@ -63,4 +63,4 @@ define('MAIL_SENDER_EMAIL', 'your-email@gmail.com');
 - Bootstrap, Remixicon, Bootstrap Icons (via CDN)
 
 ## License
-MIT
+This project is licensed under the [MIT License](LICENSE).
