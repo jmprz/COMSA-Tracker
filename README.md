@@ -61,7 +61,7 @@ define('MAIL_SENDER_EMAIL', 'your-email@gmail.com');
 
 ## Dependencies
 - [PHPMailer](https://github.com/PHPMailer/PHPMailer)
-- Bootstrap, Remixicon, Bootstrap Icons (via CDN)
+- [Bootstrap](https://getbootstrap.com), [Remixicon](https://remixicon.com) (via CDN)
 
 ## License
 This project is licensed under the [MIT License](LICENSE).
